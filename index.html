@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resultados — Tarea Go/No-Go</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --orange: #FF3A00;
+    --black: #0D0D0D;
+    --white: #F8F6F1;
+    --gray: #E8E4DC;
+    --mid: #9A9590;
+    --go:   #27AE60;
+    --nogo: #C0392B;
+    --card-bg: #FFFFFF;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'DM Sans',sans-serif; background:var(--white); color:var(--black); min-height:100vh; }
+
+  header {
+    background:var(--black); padding:28px 48px;
+    display:flex; align-items:center; gap:20px;
+    border-bottom:3px solid var(--orange);
+  }
+  .header-accent { width:6px; height:40px; background:var(--orange); border-radius:2px; flex-shrink:0; }
+  header h1 { font-family:'DM Serif Display',serif; font-size:1.5rem; color:var(--white); }
+  header p  { font-size:0.78rem; color:var(--mid); margin-top:2px; letter-spacing:0.04em; text-transform:uppercase; }
+
+  main { max-width:960px; margin:0 auto; padding:52px 24px 80px; }
+
+  /* UPLOAD */
+  .upload-label { font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--mid); display:block; margin-bottom:20px; }
+  .drop-zone { border:2px dashed #C8C4BC; border-radius:12px; padding:64px 40px; cursor:pointer; transition:all 0.2s; background:var(--card-bg); position:relative; text-align:center; }
+  .drop-zone:hover,.drop-zone.drag-over { border-color:var(--orange); background:#FFF8F6; }
+  .drop-zone input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+  .drop-zone h2 { font-family:'DM Serif Display',serif; font-size:1.4rem; margin-bottom:8px; }
+  .drop-zone p  { font-size:0.88rem; color:var(--mid); }
+  .file-types { display:inline-block; margin-top:20px; padding:6px 14px; background:var(--gray); border-radius:20px; font-size:0.75rem; color:var(--mid); }
+  #error-msg { display:none; background:#FFF0EE; border:1px solid #FFBDB3; border-radius:8px; padding:14px 20px; margin-top:20px; color:#C02828; font-size:0.88rem; }
+
+  /* COL SELECTOR */
+  #col-selector { display:none; }
+  .col-selector-box { background:var(--card-bg); border:1px solid var(--gray); border-radius:12px; padding:36px 40px; max-width:680px; margin:0 auto; }
+  .col-selector-desc { font-size:0.86rem; color:var(--mid); margin-bottom:28px; line-height:1.5; }
+  .col-fields { display:flex; flex-direction:column; gap:14px; }
+  .col-field label { display:block; font-size:0.82rem; font-weight:600; margin-bottom:5px; }
+  .col-hint { font-weight:400; color:var(--mid); font-size:0.78rem; }
+  .col-field select { width:100%; padding:9px 14px; border:1.5px solid var(--gray); border-radius:7px; font-family:'DM Sans',sans-serif; font-size:0.84rem; background:var(--white); cursor:pointer; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; }
+  .col-field select:focus { outline:none; border-color:var(--orange); }
+  #col-error { display:none; color:#C02828; font-size:0.84rem; margin-top:8px; }
+  .col-actions { display:flex; gap:12px; justify-content:flex-end; margin-top:24px; }
+  .reset-btn { padding:10px 20px; background:transparent; border:1.5px solid var(--black); border-radius:6px; font-family:'DM Sans',sans-serif; font-size:0.82rem; cursor:pointer; transition:all 0.15s; }
+  .reset-btn:hover { background:var(--black); color:var(--white); }
+  .process-btn { padding:10px 24px; background:var(--orange); border:none; border-radius:6px; font-family:'DM Sans',sans-serif; font-size:0.84rem; font-weight:600; color:white; cursor:pointer; transition:opacity 0.15s; }
+  .process-btn:hover { opacity:0.88; }
+
+  /* RESULTS */
+  #results { display:none; }
+  .results-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:36px; gap:20px; flex-wrap:wrap; }
+  .results-title h2 { font-family:'DM Serif Display',serif; font-size:2rem; }
+  .participant-meta { font-size:0.8rem; color:var(--mid); margin-top:6px; letter-spacing:0.04em; text-transform:uppercase; }
+
+  /* SUMMARY */
+  .summary-row { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:36px; }
+  .summary-card { background:var(--card-bg); border:1px solid var(--gray); border-radius:10px; padding:20px 16px; }
+  .summary-card .s-label { font-size:0.70rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--mid); margin-bottom:8px; }
+  .summary-card .s-value { font-family:'DM Serif Display',serif; font-size:2rem; color:var(--black); line-height:1; }
+  .summary-card .s-sub { font-size:0.75rem; color:var(--mid); margin-top:4px; }
+  .summary-card.go-card    { border-color:var(--go);   }
+  .summary-card.nogo-card  { border-color:var(--nogo); }
+  .summary-card.highlight  { background:var(--black); border-color:var(--black); }
+  .summary-card.highlight .s-label { color:#888; }
+  .summary-card.highlight .s-value { color:var(--orange); }
+  .summary-card.highlight .s-sub   { color:#666; }
+
+  /* METRIC CARDS */
+  .section-title { font-family:'DM Serif Display',serif; font-size:1.3rem; margin-bottom:20px; display:flex; align-items:center; gap:10px; }
+  .section-title::after { content:''; flex:1; height:1px; background:var(--gray); }
+  .metrics-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:44px; }
+  .metric-card { background:var(--card-bg); border:1px solid var(--gray); border-radius:10px; overflow:hidden; }
+  .metric-header { padding:14px 20px; }
+  .metric-name { font-size:0.85rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--white); }
+  .metric-sub  { font-size:0.72rem; color:rgba(255,255,255,0.7); margin-top:2px; }
+  .metric-body { padding:16px 20px; }
+  .metric-row { display:flex; justify-content:space-between; align-items:baseline; padding:8px 0; border-bottom:1px solid var(--gray); }
+  .metric-row:last-child { border-bottom:none; }
+  .metric-lbl { font-size:0.76rem; color:var(--mid); }
+  .metric-val { font-family:'DM Serif Display',serif; font-size:1.4rem; }
+
+  /* CHARTS */
+  .charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:44px; }
+  .chart-card { background:var(--card-bg); border:1px solid var(--gray); border-radius:10px; padding:24px 20px; }
+  .chart-title { font-size:0.75rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--mid); margin-bottom:20px; }
+  .bar-row { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .bar-row:last-child { margin-bottom:0; }
+  .bar-label { font-size:0.80rem; font-weight:600; width:80px; flex-shrink:0; }
+  .bar-track { flex:1; height:24px; background:var(--gray); border-radius:4px; overflow:hidden; }
+  .bar-fill { height:100%; border-radius:4px; transition:width 0.8s cubic-bezier(0.4,0,0.2,1); width:0; }
+  .bar-val { font-size:0.80rem; font-weight:600; width:60px; flex-shrink:0; text-align:right; }
+
+  /* TABLE */
+  .table-section { margin-bottom:48px; }
+  .table-tabs { display:flex; gap:8px; margin-bottom:16px; }
+  .tab-btn { padding:7px 18px; border:1.5px solid var(--gray); border-radius:6px; background:transparent; font-family:'DM Sans',sans-serif; font-size:0.82rem; cursor:pointer; transition:all 0.15s; }
+  .tab-btn.active { border-color:var(--orange); color:var(--orange); font-weight:600; background:#FFF8F6; }
+  .table-wrapper { background:var(--card-bg); border:1px solid var(--gray); border-radius:10px; overflow:hidden; }
+  table { width:100%; border-collapse:collapse; font-size:0.84rem; }
+  thead th { background:var(--black); color:var(--orange); padding:11px 16px; text-align:left; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.07em; font-weight:500; }
+  tbody tr { border-bottom:1px solid var(--gray); }
+  tbody tr:last-child { border-bottom:none; }
+  tbody tr:hover { background:#FAFAF8; }
+  tbody td { padding:9px 16px; }
+  .badge-go   { display:inline-block; padding:2px 10px; background:#E8F5E8; color:#1A6B1A; border-radius:20px; font-size:0.74rem; font-weight:600; }
+  .badge-nogo { display:inline-block; padding:2px 10px; background:#FCEAEA; color:#8B1A1A; border-radius:20px; font-size:0.74rem; font-weight:600; }
+  .corr-yes   { display:inline-block; padding:2px 10px; background:#E8F5E8; color:#2A7A2A; border-radius:20px; font-size:0.74rem; font-weight:600; }
+  .corr-no    { display:inline-block; padding:2px 10px; background:#FCEAEA; color:#C02828; border-radius:20px; font-size:0.74rem; font-weight:600; }
+  .corr-na    { display:inline-block; padding:2px 10px; background:#F0F0F0; color:#999; border-radius:20px; font-size:0.74rem; }
+
+  .footer-note { text-align:center; font-size:0.78rem; color:var(--mid); padding-top:24px; border-top:1px solid var(--gray); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-accent"></div>
+  <div>
+    <h1>Tarea Go/No-Go</h1>
+    <p>Análisis de resultados · Investigación e Intervención desde las Neurociencias Aplicadas · 2026-1</p>
+  </div>
+</header>
+
+<main>
+  <!-- UPLOAD -->
+  <section id="upload-section">
+    <span class="upload-label">Cargar archivo de resultados</span>
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept=".csv">
+      <span style="font-size:2.5rem;display:block;margin-bottom:16px">📂</span>
+      <h2>Arrastra tu archivo CSV aquí</h2>
+      <p>o haz clic para seleccionarlo desde tu computadora</p>
+      <span class="file-types">CSV · Generado por PsychoPy Builder</span>
+    </div>
+    <div id="error-msg"></div>
+  </section>
+
+  <!-- COL SELECTOR -->
+  <section id="col-selector">
+    <div class="col-selector-box">
+      <span class="upload-label" style="margin-bottom:6px">Confirma las columnas de tu archivo</span>
+      <p class="col-selector-desc">PsychoPy genera columnas con nombres que dependen de cómo llamaste tus componentes. Selecciona cuál columna corresponde a cada variable.</p>
+      <div class="col-fields">
+        <div class="col-field">
+          <label>es_go <span class="col-hint">(1 = trial Go, 0 = trial No-Go)</span></label>
+          <select id="sel-esgo"></select>
+        </div>
+        <div class="col-field">
+          <label>tipo <span class="col-hint">'go' / 'nogo' — opcional, para etiquetas</span></label>
+          <select id="sel-tipo"></select>
+        </div>
+        <div class="col-field">
+          <label>Respuesta correcta <span class="col-hint">(0/1 — columna .corr del Keyboard experimental)</span></label>
+          <select id="sel-corr"></select>
+        </div>
+        <div class="col-field">
+          <label>Tecla presionada <span class="col-hint">(columna .keys del Keyboard experimental)</span></label>
+          <select id="sel-keys"></select>
+        </div>
+        <div class="col-field">
+          <label>RT <span class="col-hint">(tiempo de reacción en segundos)</span></label>
+          <select id="sel-rt"></select>
+        </div>
+      </div>
+      <div id="col-error"></div>
+      <div class="col-actions">
+        <button class="reset-btn" onclick="resetApp()">← Volver</button>
+        <button class="process-btn" onclick="confirmColumns()">Procesar resultados →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="results">
+    <div class="results-header">
+      <div class="results-title">
+        <h2>Resultados del participante</h2>
+        <p class="participant-meta" id="participant-meta"></p>
+      </div>
+      <button class="reset-btn" onclick="resetApp()">← Cargar otro archivo</button>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="summary-row">
+      <div class="summary-card highlight">
+        <div class="s-label">Precisión global</div>
+        <div class="s-value" id="global-acc">—</div>
+        <div class="s-sub">% trials correctos</div>
+      </div>
+      <div class="summary-card go-card">
+        <div class="s-label">RT promedio (Go)</div>
+        <div class="s-value" id="go-rt">—</div>
+        <div class="s-sub">ms · solo trials Go correctos</div>
+      </div>
+      <div class="summary-card nogo-card">
+        <div class="s-label">Errores de comisión</div>
+        <div class="s-value" id="commission-rate">—</div>
+        <div class="s-sub">% respuestas incorrectas en No-Go</div>
+      </div>
+    </div>
+
+    <!-- METRIC CARDS -->
+    <h3 class="section-title">Por tipo de trial</h3>
+    <div class="metrics-grid" id="metrics-grid"></div>
+
+    <!-- CHARTS -->
+    <h3 class="section-title">Comparación visual</h3>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Precisión por tipo de trial (%)</div>
+        <div id="acc-chart"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Errores por tipo (%)</div>
+        <div id="err-chart"></div>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-section">
+      <h3 class="section-title">Tabla de trials</h3>
+      <div class="table-tabs" id="table-tabs"></div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Tipo</th><th>Resultado</th><th>RT (ms)</th></tr>
+          </thead>
+          <tbody id="trial-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="footer-note">
+      <strong>Nota.</strong> Solo se procesan los trials de la fase experimental. Los trials de práctica no se incluyen.<br>
+      El RT se calcula únicamente sobre trials Go correctos. Los errores de comisión son respuestas en trials No-Go.<br>
+      Basado en la Versión 4 de Wessel (2018): p(No-Go) = .20, trial duration = 1500 ms.
+    </p>
+  </section>
+</main>
+
+<script>
+let _rows = null, _file = null, _data = null;
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return null;
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,''));
+  return lines.slice(1).map(line => {
+    const vals = line.split(',').map(v => v.trim().replace(/"/g,''));
+    const row = {};
+    headers.forEach((h,i) => row[h] = vals[i] ?? '');
+    return row;
+  });
+}
+
+function findCol(keys, candidates) {
+  for (const c of candidates) {
+    const found = keys.find(k => k.toLowerCase() === c.toLowerCase());
+    if (found) return found;
+  }
+  for (const c of candidates) {
+    const found = keys.find(k => k.toLowerCase().includes(c.toLowerCase()));
+    if (found) return found;
+  }
+  return '';
+}
+
+function handleFile(file) {
+  if (!file || !file.name.endsWith('.csv')) { showError('Por favor carga un archivo CSV generado por PsychoPy.'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows = parseCSV(e.target.result);
+    if (!rows || rows.length === 0) { showError('El archivo está vacío o no tiene el formato correcto.'); return; }
+    _rows = rows; _file = file.name;
+    document.getElementById('error-msg').style.display = 'none';
+    showColSelector(rows);
+  };
+  reader.readAsText(file);
+}
+
+function showColSelector(rows) {
+  const keys = Object.keys(rows[0]).filter(k => k.trim() !== '');
+  function exactOrPartial(keys, exactName, partials) {
+    const exact = keys.find(k => k === exactName);
+    if (exact) return exact;
+    for (const p of partials) {
+      const found = keys.find(k => k.toLowerCase().includes(p.toLowerCase()));
+      if (found) return found;
+    }
+    return '';
+  }
+  const guesses = {
+    esgo:  exactOrPartial(keys, 'es_go',                      ['es_go']),
+    tipo:  exactOrPartial(keys, 'tipo',                       ['tipo']),
+    corr:  exactOrPartial(keys, 'key_resp_experimental.corr', ['experimental.corr', 'resp_exp.corr', 'key_resp.corr']),
+    keys_: exactOrPartial(keys, 'key_resp_experimental.keys', ['experimental.keys', 'resp_exp.keys', 'key_resp.keys']),
+    rt:    exactOrPartial(keys, 'key_resp_experimental.rt',   ['experimental.rt',   'resp_exp.rt',   'key_resp.rt']),
+  };
+  const selMap = {
+    'sel-esgo': guesses.esgo, 'sel-tipo': guesses.tipo,
+    'sel-corr': guesses.corr, 'sel-keys': guesses.keys_, 'sel-rt': guesses.rt,
+  };
+  Object.entries(selMap).forEach(([selId, guess]) => {
+    const sel = document.getElementById(selId);
+    sel.innerHTML = '<option value="">— Selecciona —</option>';
+    keys.forEach(k => {
+      const opt = document.createElement('option');
+      opt.value = k; opt.textContent = k;
+      if (k === guess) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
+  document.getElementById('upload-section').style.display = 'none';
+  document.getElementById('col-selector').style.display = 'block';
+}
+
+function confirmColumns() {
+  const cols = {
+    esgo: document.getElementById('sel-esgo').value,
+    tipo: document.getElementById('sel-tipo').value,
+    corr: document.getElementById('sel-corr').value,
+    keys_: document.getElementById('sel-keys').value,
+    rt:   document.getElementById('sel-rt').value,
+  };
+  const errEl = document.getElementById('col-error');
+  if (!cols.esgo || !cols.corr || !cols.rt) {
+    errEl.textContent = 'Por favor selecciona al menos es_go, respuesta correcta y RT.';
+    errEl.style.display = 'block'; return;
+  }
+  errEl.style.display = 'none';
+  const data = processData(_rows, cols);
+  if (data.error) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+  _data = data;
+  document.getElementById('col-selector').style.display = 'none';
+  render(data);
+}
+
+function processData(rows, cols) {
+  // Filter experimental trials only (those with es_go filled)
+  const expRows = rows.filter(r => {
+    const v = (r[cols.esgo] || '').trim();
+    return v !== '' && v !== 'None' && (v === '0' || v === '1');
+  });
+  if (expRows.length === 0) return { error: 'No se encontraron trials experimentales en el archivo.' };
+
+  const trials = expRows.map(r => {
+    const esgo = parseInt(r[cols.esgo]) === 1;
+    const responded = (r[cols.keys_] || '').trim() !== '' && (r[cols.keys_] || '').trim() !== 'None' && (r[cols.keys_] || '').trim() !== '[]';
+    // Go correct: responded AND .corr == 1
+    // No-Go correct: did NOT respond (inhibition) — .corr is unreliable for No-Go
+    const corr = esgo ? (String(r[cols.corr]).trim() === '1') : !responded;
+    return {
+      esgo,
+      tipo: (r[cols.tipo] || '').trim() || (esgo ? 'go' : 'nogo'),
+      corr,
+      keys_: (r[cols.keys_] || '').trim(),
+      rt:   parseFloat(r[cols.rt]) * 1000,
+      responded,
+    };
+  });
+
+  const goTrials   = trials.filter(t => t.esgo);
+  const nogoTrials = trials.filter(t => !t.esgo);
+
+  const goCorrect   = goTrials.filter(t => t.corr);
+  const nogoCorrect = nogoTrials.filter(t => t.corr);
+
+  const goRTs = goCorrect.map(t => t.rt).filter(v => !isNaN(v) && v > 0);
+  const avgRt = goRTs.length > 0 ? goRTs.reduce((a,b)=>a+b,0)/goRTs.length : null;
+
+  const commissionErrors = nogoTrials.filter(t => t.responded);
+  const omissionErrors   = goTrials.filter(t => !t.responded);
+
+  const commissionRate = nogoTrials.length > 0 ? (commissionErrors.length / nogoTrials.length) * 100 : null;
+  const omissionRate   = goTrials.length > 0   ? (omissionErrors.length   / goTrials.length)   * 100 : null;
+  const globalAcc      = trials.length > 0     ? (trials.filter(t=>t.corr).length / trials.length) * 100 : null;
+  const goAcc          = goTrials.length > 0   ? (goCorrect.length / goTrials.length) * 100 : null;
+  const nogoAcc        = nogoTrials.length > 0 ? (nogoCorrect.length / nogoTrials.length) * 100 : null;
+
+  return { trials, goTrials, nogoTrials, goCorrect, nogoCorrect,
+           avgRt, commissionRate, omissionRate, globalAcc, goAcc, nogoAcc,
+           commissionErrors, omissionErrors };
+}
+
+function render(d) {
+  document.getElementById('participant-meta').textContent =
+    `Archivo: ${_file} · ${d.trials.length} trials (${d.goTrials.length} Go + ${d.nogoTrials.length} No-Go)`;
+
+  document.getElementById('global-acc').textContent     = d.globalAcc !== null ? d.globalAcc.toFixed(1)+'%' : '—';
+  document.getElementById('go-rt').textContent          = d.avgRt !== null ? Math.round(d.avgRt)+' ms' : '—';
+  document.getElementById('commission-rate').textContent = d.commissionRate !== null ? d.commissionRate.toFixed(1)+'%' : '—';
+
+  // Metric cards
+  const grid = document.getElementById('metrics-grid');
+  grid.innerHTML = '';
+  const cards = [
+    { title:'TRIALS GO', sub:`${d.goTrials.length} trials`, color:'var(--go)',
+      rows:[
+        {l:'Correctos', v:`${d.goCorrect.length} (${d.goAcc?.toFixed(1)||'—'}%)`},
+        {l:'Errores de omisión', v:`${d.omissionErrors.length} (${d.omissionRate?.toFixed(1)||'—'}%)`},
+        {l:'RT promedio', v: d.avgRt ? Math.round(d.avgRt)+' ms' : '—'},
+      ]},
+    { title:'TRIALS NO-GO', sub:`${d.nogoTrials.length} trials`, color:'var(--nogo)',
+      rows:[
+        {l:'Correctos (inhibidos)', v:`${d.nogoCorrect.length} (${d.nogoAcc?.toFixed(1)||'—'}%)`},
+        {l:'Errores de comisión', v:`${d.commissionErrors.length} (${d.commissionRate?.toFixed(1)||'—'}%)`},
+        {l:'RT — N/A', v:'Inhibición'},
+      ]},
+    { title:'RESUMEN', sub:'todos los trials', color:'var(--black)',
+      rows:[
+        {l:'Precisión global', v:`${d.globalAcc?.toFixed(1)||'—'}%`},
+        {l:'Total errores', v:`${d.trials.filter(t=>!t.corr).length}`},
+        {l:'Total trials', v:`${d.trials.length}`},
+      ]},
+  ];
+  for (const c of cards) {
+    const card = document.createElement('div');
+    card.className = 'metric-card';
+    card.innerHTML = `
+      <div class="metric-header" style="background:${c.color}">
+        <div class="metric-name">${c.title}</div>
+        <div class="metric-sub">${c.sub}</div>
+      </div>
+      <div class="metric-body">
+        ${c.rows.map(r=>`
+          <div class="metric-row">
+            <span class="metric-lbl">${r.l}</span>
+            <span class="metric-val" style="font-size:1.1rem">${r.v}</span>
+          </div>`).join('')}
+      </div>`;
+    grid.appendChild(card);
+  }
+
+  // Charts
+  const accData = [
+    {label:'Go',    val:d.goAcc,    color:'var(--go)'},
+    {label:'No-Go', val:d.nogoAcc,  color:'var(--nogo)'},
+    {label:'Global',val:d.globalAcc,color:'var(--orange)'},
+  ];
+  const errData = [
+    {label:'Comisión', val:d.commissionRate, color:'var(--nogo)'},
+    {label:'Omisión',  val:d.omissionRate,   color:'var(--go)'},
+  ];
+  renderBars('acc-chart', accData, 100);
+  renderBars('err-chart', errData, Math.max(d.commissionRate||0, d.omissionRate||0, 10)*1.2);
+
+  // Tabs
+  const tabsEl = document.getElementById('table-tabs');
+  tabsEl.innerHTML = '';
+  const tabs = [{label:'Todos', filter:null},{label:'Go',filter:'go'},{label:'No-Go',filter:'nogo'}];
+  tabs.forEach((tab,i) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (i===0?' active':'');
+    btn.textContent = tab.label;
+    btn.onclick = () => {
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const filtered = tab.filter ? d.trials.filter(t=>t.tipo===tab.filter) : d.trials;
+      renderTable(filtered);
+    };
+    tabsEl.appendChild(btn);
+  });
+  renderTable(d.trials);
+
+  document.getElementById('results').style.display = 'block';
+}
+
+function renderBars(id, data, max) {
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  for (const item of data) {
+    const pct = item.val !== null ? (item.val/max)*100 : 0;
+    const disp = item.val !== null ? item.val.toFixed(1)+'%' : '—';
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = `
+      <span class="bar-label" style="color:${item.color}">${item.label}</span>
+      <div class="bar-track"><div class="bar-fill" style="background:${item.color}" data-w="${pct}"></div></div>
+      <span class="bar-val">${disp}</span>`;
+    el.appendChild(row);
+  }
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.bar-fill').forEach(b => b.style.width = b.dataset.w+'%');
+  });
+}
+
+function renderTable(trials) {
+  const tbody = document.getElementById('trial-table');
+  tbody.innerHTML = '';
+  trials.forEach((t, i) => {
+    const isGo = t.esgo;
+    const resultLabel = t.corr
+      ? '<span class="corr-yes">✓ Correcto</span>'
+      : (isGo
+          ? '<span class="corr-no">✗ Omisión</span>'
+          : '<span class="corr-no">✗ Comisión</span>');
+    const rtLabel = (isGo && !isNaN(t.rt) && t.rt > 0)
+      ? Math.round(t.rt)+' ms'
+      : '<span class="corr-na">N/A</span>';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--mid)">${i+1}</td>
+      <td>${isGo
+        ? '<span class="badge-go">Go</span>'
+        : '<span class="badge-nogo">No-Go</span>'}</td>
+      <td>${resultLabel}</td>
+      <td>${rtLabel}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = '⚠ '+msg; el.style.display = 'block';
+}
+
+function resetApp() {
+  document.getElementById('upload-section').style.display = 'block';
+  document.getElementById('col-selector').style.display   = 'none';
+  document.getElementById('results').style.display        = 'none';
+  document.getElementById('file-input').value = '';
+  document.getElementById('error-msg').style.display = 'none';
+  _rows = null; _file = null; _data = null;
+}
+
+const dz = document.getElementById('drop-zone');
+document.getElementById('file-input').addEventListener('change', e => handleFile(e.target.files[0]));
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
+</script>
+</body>
+</html>
