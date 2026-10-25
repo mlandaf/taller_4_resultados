@@ -127,7 +127,7 @@
   <div class="header-accent"></div>
   <div>
     <h1>Tarea Go/No-Go</h1>
-    <p>Análisis de resultados · Investigación e Intervención desde las Neurociencias Aplicadas · 2026-1</p>
+    <p>Análisis de resultados · Investigación e Intervención desde las Neurociencias Aplicadas · 2026-2</p>
   </div>
 </header>
 
@@ -243,7 +243,7 @@
     <p class="footer-note">
       <strong>Nota.</strong> Solo se procesan los trials de la fase experimental. Los trials de práctica no se incluyen.<br>
       El RT se calcula únicamente sobre trials Go correctos. Los errores de comisión son respuestas en trials No-Go.<br>
-      Basado en la Versión 4 de Wessel (2018): p(No-Go) = .20, trial duration = 1500 ms.
+      Diseño del taller: 80 % Go y 20 % No-Go. El estímulo dura hasta 1000 ms y termina al responder; después se presenta un ITI de 500 ms.
     </p>
   </section>
 </main>
@@ -251,14 +251,51 @@
 <script>
 let _rows = null, _file = null, _data = null;
 
-function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  if (lines.length < 2) return null;
-  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,''));
-  return lines.slice(1).map(line => {
-    const vals = line.split(',').map(v => v.trim().replace(/"/g,''));
-    const row = {};
-    headers.forEach((h,i) => row[h] = vals[i] ?? '');
+function parseCSV(input) {
+  const text = String(input).replace(/^\uFEFF/, '');
+  // Cuenta separadores solamente fuera de campos entrecomillados.
+  const counts = { ',': 0, ';': 0, '\t': 0 };
+  let quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      if (quoted && text[i + 1] === '"') i++;
+      else quoted = !quoted;
+    } else if (!quoted && (c === '\r' || c === '\n')) break;
+    else if (!quoted && c in counts) counts[c]++;
+  }
+  const delimiter = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+  const records = [];
+  let record = [], field = '', inQuotes = false, closed = false;
+  function endField() { record.push(field); field = ''; closed = false; }
+  function endRecord() { endField(); if (record.some(v => v.trim() !== '')) records.push(record); record = []; }
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else { inQuotes = false; closed = true; }
+      } else field += c;
+    } else if (c === delimiter) endField();
+    else if (c === '\n' || c === '\r') { endRecord(); if (c === '\r' && text[i + 1] === '\n') i++; }
+    else if (c === '"') {
+      if (field.trim() || closed) throw new Error('CSV inválido: comillas fuera de un campo.');
+      field = ''; inQuotes = true;
+    } else {
+      if (closed && c.trim()) throw new Error('CSV inválido: texto después de cerrar comillas.');
+      if (!closed) field += c;
+    }
+  }
+  if (inQuotes) throw new Error('CSV incompleto: hay un campo con comillas sin cerrar.');
+  if (field || record.length || closed) endRecord();
+  if (records.length < 2) throw new Error('El CSV no contiene registros de resultados.');
+  const headers = records.shift().map(h => h.trim());
+  const named = headers.filter(Boolean);
+  if (new Set(named).size !== named.length) throw new Error('El CSV contiene nombres de columnas duplicados.');
+  return records.map((values, i) => {
+    if (values.length !== headers.length) throw new Error(`CSV inválido: el registro ${i + 2} tiene ${values.length} campos; se esperaban ${headers.length}.`);
+    const row = Object.create(null);
+    headers.forEach((h, j) => { if (h) row[h] = values[j].trim(); });
     return row;
   });
 }
@@ -279,8 +316,13 @@ function handleFile(file) {
   if (!file || !file.name.endsWith('.csv')) { showError('Por favor carga un archivo CSV generado por PsychoPy.'); return; }
   const reader = new FileReader();
   reader.onload = e => {
-    const rows = parseCSV(e.target.result);
-    if (!rows || rows.length === 0) { showError('El archivo está vacío o no tiene el formato correcto.'); return; }
+    let rows;
+    try {
+      rows = parseCSV(e.target.result);
+    } catch (error) {
+      showError(error.message);
+      return;
+    }
     _rows = rows; _file = file.name;
     document.getElementById('error-msg').style.display = 'none';
     showColSelector(rows);
@@ -333,8 +375,8 @@ function confirmColumns() {
     rt:   document.getElementById('sel-rt').value,
   };
   const errEl = document.getElementById('col-error');
-  if (!cols.esgo || !cols.corr || !cols.rt) {
-    errEl.textContent = 'Por favor selecciona al menos es_go, respuesta correcta y RT.';
+  if (!cols.esgo || !cols.corr || !cols.keys_ || !cols.rt) {
+    errEl.textContent = 'Selecciona las columnas es_go, respuesta correcta, tecla presionada y RT.';
     errEl.style.display = 'block'; return;
   }
   errEl.style.display = 'none';
@@ -346,6 +388,10 @@ function confirmColumns() {
 }
 
 function processData(rows, cols) {
+  const required = ['esgo', 'corr', 'keys_', 'rt'];
+  if (required.some(key => !cols[key] || !Object.prototype.hasOwnProperty.call(rows[0] || {}, cols[key]))) {
+    return { error: 'Selecciona las columnas es_go, respuesta correcta, tecla presionada y RT.' };
+  }
   // Filter experimental trials only (those with es_go filled)
   const expRows = rows.filter(r => {
     const v = (r[cols.esgo] || '').trim();
